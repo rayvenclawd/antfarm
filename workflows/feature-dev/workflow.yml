@@ -17,6 +17,7 @@ agents:
   - id: planner
     name: Planner
     role: analysis
+    model: anthropic/claude-opus-4-5
     description: Decomposes tasks into ordered user stories.
     workspace:
       baseDir: agents/planner
@@ -74,6 +75,7 @@ agents:
   - id: reviewer
     name: Reviewer
     role: analysis
+    model: anthropic/claude-opus-4-5
     description: Reviews PRs, requests changes or approves.
     workspace:
       baseDir: agents/reviewer
@@ -141,6 +143,35 @@ steps:
       BASELINE: <baseline status>
     expects: "STATUS: done"
     max_retries: 2
+    on_fail:
+      escalate_to: human
+
+  - id: plan-validation
+    agent: setup
+    input: |
+      Validate the implementation plan against the project's code standards.
+
+      TASK:
+      {{task}}
+
+      REPO: {{repo}}
+      BRANCH: {{branch}}
+
+      STORIES:
+      {{stories_json}}
+
+      Instructions:
+      1. Read CLAUDE.md from the repo root (if it exists)
+      2. For each story, check that the implementation approach aligns with project conventions
+      3. Verify no story conflicts with documented patterns or standards
+      4. Flag any misalignments or conflicts
+
+      Reply with:
+      STATUS: done
+      VALIDATED: What you confirmed aligns with project standards
+      CONFLICTS: Any conflicts found (or "none")
+    expects: "STATUS: done"
+    max_retries: 1
     on_fail:
       escalate_to: human
 
@@ -255,7 +286,7 @@ steps:
     expects: "STATUS: done"
     on_fail:
       retry_step: implement
-      max_retries: 2
+      max_retries: 3
       on_exhausted:
         escalate_to: human
 
@@ -295,6 +326,43 @@ steps:
     on_fail:
       retry_step: implement
       max_retries: 2
+      on_exhausted:
+        escalate_to: human
+
+  - id: regression-check
+    agent: tester
+    input: |
+      Run the full regression test suite to confirm no pre-existing tests were broken.
+
+      TASK:
+      {{task}}
+
+      REPO: {{repo}}
+      BRANCH: {{branch}}
+      TEST_CMD: {{test_cmd}}
+      BASELINE: {{baseline}}
+
+      PROGRESS LOG:
+      {{progress}}
+
+      Instructions:
+      1. Run the FULL test suite: {{test_cmd}}
+      2. Compare results against the baseline from setup
+      3. Flag any NEW failures (tests that passed in baseline but fail now)
+      4. Flaky tests should be noted but not block
+
+      Reply with:
+      STATUS: done
+      REGRESSION_RESULTS: Full test results and comparison to baseline
+
+      Or if regressions found:
+      STATUS: retry
+      REGRESSIONS:
+      - Tests that regressed
+    expects: "STATUS: done"
+    on_fail:
+      retry_step: implement
+      max_retries: 1
       on_exhausted:
         escalate_to: human
 

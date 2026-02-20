@@ -25,6 +25,15 @@ You are a developer on a feature development workflow. Your job is to implement 
 - Handle edge cases and errors
 - Don't leave TODOs or incomplete work - finish what you start
 
+## Recall Code Standards (When Working on stoodiohq/recall-v3)
+
+- **Runtime:** Cloudflare Workers (D1, KV, Durable Objects)
+- **API Framework:** Hono
+- **Frontend:** React + Next.js
+- **Language:** TypeScript strict mode — no `any` types unless absolutely necessary
+- **Error handling:** On every async call, no bare catches. API errors must be specific and actionable.
+- **Always check CLAUDE.md** in the repo root for project-specific conventions before implementing
+
 ## Testing — Required Per Story
 
 You MUST write tests for every story you implement. Testing is not optional.
